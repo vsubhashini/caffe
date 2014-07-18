@@ -1,9 +1,28 @@
-name: "CIFAR10_quick_test"
-input: "data"
-input_dim: 1
-input_dim: 3
-input_dim: 32
-input_dim: 32
+name: "CIFAR10_quick"
+layers {
+  name: "cifar"
+  type: DATA
+  top: "data"
+  top: "label"
+  data_param {
+    source: "cifar10-leveldb/cifar-train-leveldb"
+    mean_file: "mean.binaryproto"
+    batch_size: 100
+  }
+  phase: TRAIN
+}
+layers {
+  name: "cifar"
+  type: DATA
+  top: "data"
+  top: "label"
+  data_param {
+    source: "cifar10-leveldb/cifar-test-leveldb"
+    mean_file: "mean.binaryproto"
+    batch_size: 100
+  }
+  phase: TEST
+}
 layers {
   name: "conv1"
   type: CONVOLUTION
@@ -16,6 +35,13 @@ layers {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layers {
@@ -47,6 +73,13 @@ layers {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layers {
@@ -78,6 +111,13 @@ layers {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layers {
@@ -106,6 +146,13 @@ layers {
   blobs_lr: 2
   inner_product_param {
     num_output: 64
+    weight_filler {
+      type: "gaussian"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layers {
@@ -117,11 +164,27 @@ layers {
   blobs_lr: 2
   inner_product_param {
     num_output: 10
+    weight_filler {
+      type: "gaussian"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layers {
-  name: "prob"
-  type: SOFTMAX
+  name: "accuracy"
+  type: ACCURACY
   bottom: "ip2"
-  top: "prob"
+  bottom: "label"
+  top: "accuracy"
+  phase: TEST
+}
+layers {
+  name: "loss"
+  type: SOFTMAX_LOSS
+  bottom: "ip2"
+  bottom: "label"
+  top: "loss"
 }

@@ -11,6 +11,21 @@ layers {
   }
   top: "data"
   top: "label"
+  phase: TRAIN
+}
+layers {
+  name: "data"
+  type: DATA
+  data_param {
+    source: "ilsvrc12_val_leveldb"
+    mean_file: "../../data/ilsvrc12/imagenet_mean.binaryproto"
+    batch_size: 50
+    crop_size: 227
+    mirror: false
+  }
+  top: "data"
+  top: "label"
+  phase: TEST
 }
 layers {
   name: "conv1"
@@ -307,6 +322,14 @@ layers {
   }
   bottom: "fc7"
   top: "fc8"
+}
+layers {
+  name: "accuracy"
+  type: ACCURACY
+  bottom: "fc8"
+  bottom: "label"
+  top: "accuracy"
+  phase: TEST
 }
 layers {
   name: "loss"

@@ -1,9 +1,28 @@
 name: "LeNet"
-input: "data"
-input_dim: 64
-input_dim: 1
-input_dim: 28
-input_dim: 28
+layers {
+  name: "mnist"
+  type: DATA
+  top: "data"
+  top: "label"
+  data_param {
+    source: "mnist-train-leveldb"
+    scale: 0.00390625
+    batch_size: 64
+  }
+  phase: TRAIN
+}
+layers {
+  name: "mnist"
+  type: DATA
+  top: "data"
+  top: "label"
+  data_param {
+    source: "mnist-test-leveldb"
+    scale: 0.00390625
+    batch_size: 100
+  }
+  phase: TEST
+}
 layers {
   name: "conv1"
   type: CONVOLUTION
@@ -105,8 +124,17 @@ layers {
   }
 }
 layers {
-  name: "prob"
-  type: SOFTMAX
+  name: "accuracy"
+  type: ACCURACY
   bottom: "ip2"
-  top: "prob"
+  bottom: "label"
+  top: "accuracy"
+  phase: TEST
+}
+layers {
+  name: "loss"
+  type: SOFTMAX_LOSS
+  bottom: "ip2"
+  bottom: "label"
+  top: "loss"
 }
