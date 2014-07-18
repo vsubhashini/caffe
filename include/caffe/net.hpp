@@ -19,12 +19,14 @@ namespace caffe {
 template <typename Dtype>
 class Net {
  public:
-  explicit Net(const NetParameter& param);
-  explicit Net(const string& param_file);
+  Net(const NetParameter& param, int level = 0, const string* stage = NULL);
+  Net(const char* param_file, int level = 0, const string* stage = NULL);
+  Net(const string& param_file, int level = 0, const string* stage = NULL);
   virtual ~Net() {}
 
   // Initialize a network with the network parameter.
-  void Init(const NetParameter& param);
+  void Init(const NetParameter& param, int level = 0,
+      const string* stage = NULL);
 
   // Run forward with the input blobs already fed separately. You can get the
   // input blobs using input_blobs().
@@ -115,6 +117,10 @@ class Net {
 
  protected:
   // Helpers for Init.
+  // Remove layers that the user specified should be excluded given the current
+  // phase, level, and stage.
+  void FilterParam(const NetParameter& param, int level, const string* stage,
+                   NetParameter* param_filtered);
   // Append a new input or top blob to the net.
   void AppendTop(const NetParameter& param, const int layer_id,
                  const int top_id, set<string>* available_blobs,

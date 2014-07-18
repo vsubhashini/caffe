@@ -19,24 +19,36 @@
 namespace caffe {
 
 template <typename Dtype>
-Net<Dtype>::Net(const NetParameter& param) {
-  Init(param);
+Net<Dtype>::Net(const NetParameter& param, int level, const string* stage) {
+  Init(param, level, stage);
 }
 
 template <typename Dtype>
-Net<Dtype>::Net(const string& param_file) {
+Net<Dtype>::Net(const char* param_file, int level, const string* stage) {
   NetParameter param;
   ReadNetParamsFromTextFileOrDie(param_file, &param);
-  Init(param);
+  Init(param, level, stage);
 }
 
 template <typename Dtype>
-void Net<Dtype>::Init(const NetParameter& in_param) {
-  LOG(INFO) << "Initializing net from parameters: " << std::endl
-            << in_param.DebugString();
-  // Create a copy of in_param with splits added where necessary.
+Net<Dtype>::Net(const string& param_file, int level, const string* stage) {
   NetParameter param;
-  InsertSplits(in_param, &param);
+  ReadNetParamsFromTextFileOrDie(param_file, &param);
+  Init(param, level, stage);
+}
+
+template <typename Dtype>
+void Net<Dtype>::Init(const NetParameter& in_param,
+                      int level, const string* stage) {
+  // Filter out layers that have been marked as excluded based on the current
+  // phase, level, and/or stage.
+  NetParameter filtered_param;
+  FilterParam(in_param, level, stage, &filtered_param);
+  LOG(INFO) << "Initializing net from parameters: " << std::endl
+            << filtered_param.DebugString();
+  // Create a copy of filtered_param with splits added where necessary.
+  NetParameter param;
+  InsertSplits(filtered_param, &param);
   // Basically, build all the layers and set up its connections.
   name_ = param.name();
   map<string, int> blob_name_to_idx;
@@ -163,6 +175,52 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   GetLearningRateAndWeightDecay();
   LOG(INFO) << "Network initialization done.";
   LOG(INFO) << "Memory required for data: " << memory_used_ * sizeof(Dtype);
+}
+
+template <typename Dtype>
+void Net<Dtype>::FilterParam(const NetParameter& param,
+    int level, const string* stage, NetParameter* param_filtered) {
+  param_filtered->CopyFrom(param);
+  param_filtered->clear_layers();
+  for (int i = 0; i < param.layers_size(); ++i) {
+    const LayerParameter& layer_param = param.layers(i);
+    // Check the phase.
+    bool layer_in_phase = (layer_param.phase_size() == 0);
+    for (int j = 0; !layer_in_phase && j < layer_param.phase_size(); ++j) {
+      if ((layer_param.phase(j) == TRAIN && Caffe::phase() == Caffe::TRAIN) ||
+          (layer_param.phase(j) == TEST && Caffe::phase() == Caffe::TEST)) {
+        layer_in_phase = true;
+      }
+    }
+    if (!layer_in_phase) {
+      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
+          "phase is " << Caffe::phase() << "; not included in the layer's "
+          "(non-empty) phase list.";
+      continue;
+    }
+    // Check the level.
+    if (level < layer_param.level()) {
+      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
+          "level is " << level << "; layer specified a minimum level "
+          "of " << layer_param.level();
+      continue;
+    }
+    // Check the stage.
+    bool layer_in_stage = (layer_param.stage_size() == 0);
+    for (int j = 0; !layer_in_stage && j < layer_param.stage_size(); ++j) {
+      if (layer_param.stage(j) == (stage ? *stage : "")) {
+        layer_in_stage = true;
+      }
+    }
+    if (!layer_in_stage) {
+      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
+          "stage is " << stage << "; not included in the layer's "
+          "(non-empty) stage list.";
+      continue;
+    }
+    // All checks have passed; add the layer to the output net.
+    param_filtered->add_layers()->CopyFrom(layer_param);
+  }
 }
 
 // Helper for Net::Init: add a new input or top blob to the net.  (Inputs have

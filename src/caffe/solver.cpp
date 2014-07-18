@@ -42,38 +42,132 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
     Caffe::set_random_seed(param_.random_seed());
   }
   // Scaffolding code
+  InitTrainNet();
+  InitTestNets();
+  LOG(INFO) << "Solver scaffolding done.";
+}
+
+template <typename Dtype>
+void Solver<Dtype>::InitTrainNet() {
+  const int num_train_nets = param_.has_net() + param_.has_net_param() +
+      param_.has_train_net() + param_.has_train_net_param();
+  const string& field_names = "net, net_param, train_net, train_net_param";
+  CHECK_GE(num_train_nets, 1) << "SolverParameter must specify a train net "
+      << "using one of these fields: " << field_names;
+  CHECK_LE(num_train_nets, 1) << "SolverParameter must not contain more than "
+      << "one of these fields specifying a train_net: " << field_names;
+  const int train_level = param_.train_level();
+  const string* train_stage = param_.mutable_train_stage();
   if (param_.has_train_net_param()) {
-    CHECK(!param_.has_train_net()) << "Either train_net_param or train_net may "
-                                   << "be specified, but not both.";
-    LOG(INFO) << "Creating training net specified in SolverParameter.";
-    net_.reset(new Net<Dtype>(param_.train_net_param()));
-  } else {
-    CHECK(param_.has_train_net())
-        << "Neither train_net nor train_net_param were specified.";
-    LOG(INFO) << "Creating training net from file: " << param_.train_net();
-    net_.reset(new Net<Dtype>(param_.train_net()));
+    LOG(INFO) << "Creating training net specified in train_net_param.";
+    net_.reset(
+        new Net<Dtype>(param_.train_net_param(), train_level, train_stage));
+    return;
   }
+  if (param_.has_train_net()) {
+    LOG(INFO) << "Creating training net from train_net file: "
+              << param_.train_net();
+    net_.reset(new Net<Dtype>(param_.train_net(), train_level, train_stage));
+    return;
+  }
+  if (param_.has_net_param()) {
+    LOG(INFO) << "Creating training net specified in net_param.";
+    net_.reset(
+        new Net<Dtype>(param_.net_param(), train_level, train_stage));
+    return;
+  }
+  if (param_.has_net()) {
+    LOG(INFO) << "Creating training net from net file: " << param_.net();
+    net_.reset(new Net<Dtype>(param_.net(), train_level, train_stage));
+    return;
+  }
+  LOG(FATAL)
+      << "Should have initialized net and returned from one of the above.";
+}
+
+template <typename Dtype>
+void Solver<Dtype>::InitTestNets() {
+  const Caffe::Phase& initial_phase = Caffe::phase();
+  Caffe::set_phase(Caffe::TEST);
+  const bool has_net_param = param_.has_net_param();
+  const bool has_net_file = param_.has_net();
+  const int num_generic_nets = has_net_param + has_net_file;
+  CHECK_LE(num_generic_nets, 1)
+      << "Both net_param and net_file may not be specified.";
   const int num_test_net_params = param_.test_net_param_size();
   const int num_test_net_files = param_.test_net_size();
   const int num_test_nets = num_test_net_params + num_test_net_files;
-  if (num_test_nets) {
-    CHECK_EQ(param_.test_iter_size(), num_test_nets)
-        << "test_iter must be specified for each test network.";
+  if (num_generic_nets) {
+      CHECK_GE(param_.test_iter_size(), num_test_nets)
+          << "test_iter must be specified for each test network.";
+  } else {
+      CHECK_EQ(param_.test_iter_size(), num_test_nets)
+          << "test_iter must be specified for each test network.";
+  }
+  // If we have a generic net (specified by net or net_param, rather than
+  // test_net or test_net_param), we may have an unlimited number of actual
+  // test networks -- the actual number is given by the number of remaining
+  // test_iters after any test nets specified by test_net_param and/or test_net
+  // are evaluated.
+  const int num_generic_net_instances = param_.test_iter_size() - num_test_nets;
+  const int num_test_net_instances = num_test_nets + num_generic_net_instances;
+  if (num_test_net_instances) {
     CHECK_GT(param_.test_interval(), 0);
+    if (param_.test_level_size() == 0) {
+      for (int i = 0; i < num_test_net_instances; ++i) {
+        param_.add_test_level(0);
+      }
+    } else {
+      CHECK_EQ(num_test_net_instances, param_.test_level_size())
+          << "test_level must be unspecified or specified once per test net.";
+    }
+    if (param_.test_stage_size() == 0) {
+      for (int i = 0; i < num_test_net_instances; ++i) {
+        param_.add_test_stage("");
+      }
+    } else {
+      CHECK_EQ(num_test_net_instances, param_.test_stage_size())
+          << "test_stage must be unspecified or specified once per test net.";
+    }
   }
-  test_nets_.resize(num_test_nets);
-  for (int i = 0; i < num_test_net_params; ++i) {
-      LOG(INFO) << "Creating testing net (#" << i
-                << ") specified in SolverParameter.";
-      test_nets_[i].reset(new Net<Dtype>(param_.test_net_param(i)));
-  }
-  for (int i = 0, test_net_id = num_test_net_params;
-       i < num_test_net_files; ++i, ++test_net_id) {
+  test_nets_.resize(num_test_net_instances);
+  int test_net_id = 0;
+  for (int i = 0; i < num_test_net_params; ++i, ++test_net_id) {
       LOG(INFO) << "Creating testing net (#" << test_net_id
-                << ") from file: " << param.test_net(i);
-      test_nets_[test_net_id].reset(new Net<Dtype>(param_.test_net(i)));
+                << ") specified by test_net_param.";
+      test_nets_[test_net_id].reset(new Net<Dtype>(param_.test_net_param(i),
+          param_.test_level(test_net_id),
+          param_.mutable_test_stage(test_net_id)));
   }
-  LOG(INFO) << "Solver scaffolding done.";
+  for (int i = 0; i < num_test_net_files; ++i, ++test_net_id) {
+      LOG(INFO) << "Creating testing net (#" << test_net_id
+                << ") specified by test_net file: " << param_.test_net(i);
+      test_nets_[test_net_id].reset(new Net<Dtype>(param_.test_net(i),
+          param_.test_level(test_net_id),
+          param_.mutable_test_stage(test_net_id)));
+  }
+  const int remaining_test_nets = param_.test_iter_size() - test_net_id;
+  if (has_net_param) {
+    for (int i = 0; i < remaining_test_nets; ++i, ++test_net_id) {
+      LOG(INFO) << "Creating testing net (#" << test_net_id
+                << ") specified by net_param.";
+      test_nets_[test_net_id].reset(new Net<Dtype>(param_.net_param(),
+          param_.test_level(test_net_id),
+          param_.mutable_test_stage(test_net_id)));
+    }
+  }
+  if (has_net_file) {
+    for (int i = 0; i < remaining_test_nets; ++i, ++test_net_id) {
+      LOG(INFO) << "Creating testing net (#" << test_net_id
+                << ") specified by net file: " << param_.net();
+      test_nets_[test_net_id].reset(new Net<Dtype>(param_.net(),
+          param_.test_level(test_net_id),
+          param_.mutable_test_stage(test_net_id)));
+    }
+  }
+  CHECK_EQ(num_test_net_instances, test_net_id) << "Created incorrect number "
+      << "of test nets. If you see this, you've found a bug.";
+  Caffe::set_phase(initial_phase);
 }
 
 template <typename Dtype>
