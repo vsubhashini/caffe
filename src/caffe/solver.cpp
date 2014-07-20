@@ -11,6 +11,7 @@
 #include "caffe/solver.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
+#include "caffe/util/upgrade_proto.hpp"
 
 namespace caffe {
 
@@ -56,39 +57,38 @@ void Solver<Dtype>::InitTrainNet() {
       << "using one of these fields: " << field_names;
   CHECK_LE(num_train_nets, 1) << "SolverParameter must not contain more than "
       << "one of these fields specifying a train_net: " << field_names;
-  const int train_level = param_.train_level();
-  const string* train_stage = param_.mutable_train_stage();
+  NetParameter net_param;
   if (param_.has_train_net_param()) {
     LOG(INFO) << "Creating training net specified in train_net_param.";
-    net_.reset(
-        new Net<Dtype>(param_.train_net_param(), train_level, train_stage));
-    return;
-  }
-  if (param_.has_train_net()) {
+    net_param.CopyFrom(param_.train_net_param());
+  } else if (param_.has_train_net()) {
     LOG(INFO) << "Creating training net from train_net file: "
               << param_.train_net();
-    net_.reset(new Net<Dtype>(param_.train_net(), train_level, train_stage));
-    return;
+    ReadNetParamsFromTextFileOrDie(param_.train_net(), &net_param);
   }
   if (param_.has_net_param()) {
     LOG(INFO) << "Creating training net specified in net_param.";
-    net_.reset(
-        new Net<Dtype>(param_.net_param(), train_level, train_stage));
-    return;
+    net_param.CopyFrom(param_.net_param());
   }
   if (param_.has_net()) {
     LOG(INFO) << "Creating training net from net file: " << param_.net();
-    net_.reset(new Net<Dtype>(param_.net(), train_level, train_stage));
-    return;
+    ReadNetParamsFromTextFileOrDie(param_.net(), &net_param);
   }
-  LOG(FATAL)
-      << "Should have initialized net and returned from one of the above.";
+  // Set the correct NetState.  We start with the solver defaults (lowest
+  // precedence); then, merge in any NetState specified by the net_param itself;
+  // finally, merge in any NetState specified by the train_state (highest
+  // precedence).
+  NetState net_state;
+  net_state.set_phase(TRAIN);
+  net_state.set_solver(true);
+  net_state.MergeFrom(net_param.state());
+  net_state.MergeFrom(param_.train_state());
+  net_param.mutable_state()->CopyFrom(net_state);
+  net_.reset(new Net<Dtype>(net_param));
 }
 
 template <typename Dtype>
 void Solver<Dtype>::InitTestNets() {
-  const Caffe::Phase& initial_phase = Caffe::phase();
-  Caffe::set_phase(Caffe::TEST);
   const bool has_net_param = param_.has_net_param();
   const bool has_net_file = param_.has_net();
   const int num_generic_nets = has_net_param + has_net_file;
@@ -111,63 +111,56 @@ void Solver<Dtype>::InitTestNets() {
   // are evaluated.
   const int num_generic_net_instances = param_.test_iter_size() - num_test_nets;
   const int num_test_net_instances = num_test_nets + num_generic_net_instances;
+  if (param_.test_state_size()) {
+    CHECK_EQ(param_.test_state_size(), num_test_net_instances)
+        << "test_state must be unspecified or specified once per test net.";
+  }
   if (num_test_net_instances) {
     CHECK_GT(param_.test_interval(), 0);
-    if (param_.test_level_size() == 0) {
-      for (int i = 0; i < num_test_net_instances; ++i) {
-        param_.add_test_level(0);
-      }
-    } else {
-      CHECK_EQ(num_test_net_instances, param_.test_level_size())
-          << "test_level must be unspecified or specified once per test net.";
-    }
-    if (param_.test_stage_size() == 0) {
-      for (int i = 0; i < num_test_net_instances; ++i) {
-        param_.add_test_stage("");
-      }
-    } else {
-      CHECK_EQ(num_test_net_instances, param_.test_stage_size())
-          << "test_stage must be unspecified or specified once per test net.";
-    }
   }
-  test_nets_.resize(num_test_net_instances);
   int test_net_id = 0;
+  vector<string> sources(num_test_net_instances);
+  vector<NetParameter> net_params(num_test_net_instances);
   for (int i = 0; i < num_test_net_params; ++i, ++test_net_id) {
-      LOG(INFO) << "Creating testing net (#" << test_net_id
-                << ") specified by test_net_param.";
-      test_nets_[test_net_id].reset(new Net<Dtype>(param_.test_net_param(i),
-          param_.test_level(test_net_id),
-          param_.mutable_test_stage(test_net_id)));
+      sources[test_net_id] = "test_net_param";
+      net_params[test_net_id].CopyFrom(param_.test_net_param(i));
   }
   for (int i = 0; i < num_test_net_files; ++i, ++test_net_id) {
-      LOG(INFO) << "Creating testing net (#" << test_net_id
-                << ") specified by test_net file: " << param_.test_net(i);
-      test_nets_[test_net_id].reset(new Net<Dtype>(param_.test_net(i),
-          param_.test_level(test_net_id),
-          param_.mutable_test_stage(test_net_id)));
+      sources[test_net_id] = "test_net file: " + param_.test_net(i);
+      ReadNetParamsFromTextFileOrDie(param_.test_net(i),
+          &net_params[test_net_id]);
   }
   const int remaining_test_nets = param_.test_iter_size() - test_net_id;
   if (has_net_param) {
     for (int i = 0; i < remaining_test_nets; ++i, ++test_net_id) {
-      LOG(INFO) << "Creating testing net (#" << test_net_id
-                << ") specified by net_param.";
-      test_nets_[test_net_id].reset(new Net<Dtype>(param_.net_param(),
-          param_.test_level(test_net_id),
-          param_.mutable_test_stage(test_net_id)));
+      sources[test_net_id] = "net_param";
+      net_params[test_net_id].CopyFrom(param_.net_param());
     }
   }
   if (has_net_file) {
     for (int i = 0; i < remaining_test_nets; ++i, ++test_net_id) {
-      LOG(INFO) << "Creating testing net (#" << test_net_id
-                << ") specified by net file: " << param_.net();
-      test_nets_[test_net_id].reset(new Net<Dtype>(param_.net(),
-          param_.test_level(test_net_id),
-          param_.mutable_test_stage(test_net_id)));
+      sources[test_net_id] = "net file: " + param_.net();
+      ReadNetParamsFromTextFileOrDie(param_.net(), &net_params[test_net_id]);
     }
   }
-  CHECK_EQ(num_test_net_instances, test_net_id) << "Created incorrect number "
-      << "of test nets. If you see this, you've found a bug.";
-  Caffe::set_phase(initial_phase);
+  test_nets_.resize(num_test_net_instances);
+  for (int i = 0; i < num_test_net_instances; ++i) {
+    // Set the correct NetState.  We start with the solver defaults (lowest
+    // precedence); then, merge in any NetState specified by the net_param
+    // itself; finally, merge in any NetState specified by the test_state
+    // (highest precedence).
+    NetState net_state;
+    net_state.set_phase(TEST);
+    net_state.set_solver(true);
+    net_state.MergeFrom(net_params[i].state());
+    if (param_.test_state_size()) {
+      net_state.MergeFrom(param_.test_state(i));
+    }
+    net_params[i].mutable_state()->CopyFrom(net_state);
+    LOG(INFO)
+        << "Creating testing net (#" << i << ") specified by " << sources[i];
+    test_nets_[i].reset(new Net<Dtype>(net_params[i]));
+  }
 }
 
 template <typename Dtype>

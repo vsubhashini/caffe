@@ -19,31 +19,22 @@
 namespace caffe {
 
 template <typename Dtype>
-Net<Dtype>::Net(const NetParameter& param, int level, const string* stage) {
-  Init(param, level, stage);
+Net<Dtype>::Net(const NetParameter& param) {
+  Init(param);
 }
 
 template <typename Dtype>
-Net<Dtype>::Net(const char* param_file, int level, const string* stage) {
+Net<Dtype>::Net(const string& param_file) {
   NetParameter param;
   ReadNetParamsFromTextFileOrDie(param_file, &param);
-  Init(param, level, stage);
+  Init(param);
 }
 
 template <typename Dtype>
-Net<Dtype>::Net(const string& param_file, int level, const string* stage) {
-  NetParameter param;
-  ReadNetParamsFromTextFileOrDie(param_file, &param);
-  Init(param, level, stage);
-}
-
-template <typename Dtype>
-void Net<Dtype>::Init(const NetParameter& in_param,
-                      int level, const string* stage) {
-  // Filter out layers that have been marked as excluded based on the current
-  // phase, level, and/or stage.
+void Net<Dtype>::Init(const NetParameter& in_param) {
+  // Filter layers based on their enable/disable rules and the current NetState.
   NetParameter filtered_param;
-  FilterParam(in_param, level, stage, &filtered_param);
+  FilterParam(in_param, &filtered_param);
   LOG(INFO) << "Initializing net from parameters: " << std::endl
             << filtered_param.DebugString();
   // Create a copy of filtered_param with splits added where necessary.
@@ -179,48 +170,90 @@ void Net<Dtype>::Init(const NetParameter& in_param,
 
 template <typename Dtype>
 void Net<Dtype>::FilterParam(const NetParameter& param,
-    int level, const string* stage, NetParameter* param_filtered) {
+    NetParameter* param_filtered) {
+  const NetState& net_state = param.state();
   param_filtered->CopyFrom(param);
   param_filtered->clear_layers();
   for (int i = 0; i < param.layers_size(); ++i) {
     const LayerParameter& layer_param = param.layers(i);
-    // Check the phase.
-    bool layer_in_phase = (layer_param.phase_size() == 0);
-    for (int j = 0; !layer_in_phase && j < layer_param.phase_size(); ++j) {
-      if ((layer_param.phase(j) == TRAIN && Caffe::phase() == Caffe::TRAIN) ||
-          (layer_param.phase(j) == TEST && Caffe::phase() == Caffe::TEST)) {
-        layer_in_phase = true;
+    const string& layer_name = layer_param.name();
+    CHECK(layer_param.enable_size() == 0 || layer_param.disable_size() == 0)
+          << "Specify either enable rules or disable rules; not both.";
+    // If no enable rules are specified, the layer is enabled by default and
+    // only disabled if it meets one of the disable rules.
+    bool layer_enabled = (layer_param.enable_size() == 0);
+    for (int j = 0; layer_enabled && j < layer_param.disable_size(); ++j) {
+      if (StateMeetsRule(net_state, layer_param.disable(j), layer_name)) {
+        layer_enabled = false;
       }
     }
-    if (!layer_in_phase) {
-      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
-          "phase is " << Caffe::phase() << "; not included in the layer's "
-          "(non-empty) phase list.";
-      continue;
-    }
-    // Check the level.
-    if (level < layer_param.level()) {
-      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
-          "level is " << level << "; layer specified a minimum level "
-          "of " << layer_param.level();
-      continue;
-    }
-    // Check the stage.
-    bool layer_in_stage = (layer_param.stage_size() == 0);
-    for (int j = 0; !layer_in_stage && j < layer_param.stage_size(); ++j) {
-      if (layer_param.stage(j) == (stage ? *stage : "")) {
-        layer_in_stage = true;
+    for (int j = 0; !layer_enabled && j < layer_param.enable_size(); ++j) {
+      if (StateMeetsRule(net_state, layer_param.enable(j), layer_name)) {
+        layer_enabled = true;
       }
     }
-    if (!layer_in_stage) {
-      LOG(INFO) << "Layer " << layer_param.name() << " excluded; the current "
-          "stage is " << stage << "; not included in the layer's "
-          "(non-empty) stage list.";
-      continue;
+    if (layer_enabled) {
+      param_filtered->add_layers()->CopyFrom(layer_param);
     }
-    // All checks have passed; add the layer to the output net.
-    param_filtered->add_layers()->CopyFrom(layer_param);
   }
+}
+
+template <typename Dtype>
+bool Net<Dtype>::StateMeetsRule(const NetState& state,
+    const NetStateRule& rule, const string& layer_name) {
+  // Check whether the rule is broken due to phase.
+  if (rule.has_phase()) {
+      if (rule.phase() != state.phase()) {
+        LOG(INFO) << "The NetState phase (" << state.phase()
+          << ") differed from the phase (" << rule.phase()
+          << ") specified by a rule in layer " << layer_name;
+        return false;
+      }
+  }
+  // Check whether the rule is broken due to solver.
+  if (rule.has_solver()) {
+    if (state.solver() != rule.solver()) {
+      LOG(INFO) << "The NetState solver presence (" << state.solver()
+        << ") differed from the solver presence (" << rule.solver()
+        << ") specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to min level.
+  if (rule.has_min_level()) {
+    if (state.level() < rule.min_level()) {
+      LOG(INFO) << "The NetState level (" << state.level()
+          << ") is above the min_level (" << rule.min_level()
+          << " specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to max level.
+  if (rule.has_max_level()) {
+    if (state.level() > rule.max_level()) {
+      LOG(INFO) << "The NetState level (" << state.level()
+          << ") is above the max_level (" << rule.max_level()
+          << " specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to stage. If stage is specified,
+  // the NetState must contain ALL of the rule's stages to meet it.
+  if (rule.stage_size()) {
+    for (int i = 0; i < rule.stage_size(); ++i) {
+      // Check that the NetState contains the rule's ith stage.
+      bool has_stage = false;
+      for (int j = 0; !has_stage && j < state.stage_size(); ++j) {
+        if (rule.stage(i) == state.stage(j)) { has_stage = true; }
+      }
+      if (!has_stage) {
+        LOG(INFO) << "The NetState did not contain stage '" << rule.stage(i)
+                  << "' specified by a rule in layer " << layer_name;
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // Helper for Net::Init: add a new input or top blob to the net.  (Inputs have
