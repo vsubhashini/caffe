@@ -56,6 +56,10 @@ message NetParameter {
   // If set False, then whether to carry out backward is determined
   // automatically according to the net structure and learning rates.
   optional bool force_backward = 5 [default = false];
+  // The current "state" of the network, including the phase, level, and stage.
+  // Some layers may be enabled/disabled depending on this state and the states
+  // specified in the layers' enable and disable fields.
+  optional NetState state = 6;
 }
 
 // NOTE
@@ -88,13 +92,15 @@ message SolverParameter {
   optional NetParameter train_net_param = 21; // Inline train net params.
   repeated NetParameter test_net_param = 22; // Inline test net params.
 
-  // The level and stage for the train/test nets. Must be unspecified or
-  // specified once per net. If unspecified, the defaults (level = 0 and
-  // stage = "") are used.
-  optional int32 train_level = 25 [default = 0];
-  optional string train_stage = 26 [default = ""];
-  repeated int32 test_level = 27;
-  repeated string test_stage = 28;
+  // The states for the train/test nets. Must be unspecified or
+  // specified once per net.
+  //
+  // By default, all states will have solver = true;
+  // train_state will have phase = TRAIN,
+  // and all test_state's will have phase = TEST.
+  // Other defaults are set according to the NetState defaults.
+  optional NetState train_state = 25;
+  repeated NetState test_state = 26;
 
   // The number of iterations for each test net.
   repeated int32 test_iter = 3;
@@ -144,38 +150,51 @@ enum Phase {
    TEST = 1;
 }
 
+message NetState {
+  optional Phase phase = 1 [default = TEST];
+  optional bool solver = 2 [default = false];
+  optional int32 level = 3 [default = 0];
+  repeated string stage = 4;
+}
+
+message NetStateRule {
+  // Set phase to require the NetState have a particular phase (TRAIN or TEST)
+  // to meet this rule.
+  optional Phase phase = 1;
+
+  // Set solver = true to meet the rule only when the net is initialized from
+  // the solver.  Set solver = false to meet the rule only when the net is NOT
+  // initialized from the solver.  Otherwise, leave undefined.
+  optional bool solver = 2;
+
+  // Set the minimum and/or maximum levels in which the layer should be used.
+  // Leave undefined to meet the rule regardless of level.
+  optional int32 min_level = 3;
+  optional int32 max_level = 4;
+
+  // A customizable set of stages.
+  // The net must have ALL of the specified stages to meet the rule.
+  // (Use multiple NetStateRules to specify conjunctions of stages.)
+  repeated string stage = 5;
+}
+
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available ID: 33 (last added: stage)
+// LayerParameter next available ID: 32 (last added: disable)
 message LayerParameter {
   repeated string bottom = 2; // the name of the bottom blobs
   repeated string top = 3; // the name of the top blobs
   optional string name = 4; // the layer name
 
-  // Settings controlling whether and when a layer is included in the network,
-  // based on the current phase, level, and stage.  All settings can be safely
-  // left unspecified to include all layers at all times, with the exception
-  // of a (non-default) negative level setting, which would cause layers with
-  // the default level of 0 to be excluded.
-
-  // The phase(s) in which the layer should be used.  If none are specified,
-  // the layer is included in both phases.
-  repeated Phase phase = 28;
-
-  // The minimum level in which the layer should be used.
-  // All layers whose level is at most (<=) the current level setting will be
-  // included in the net.  For example, when training at level 1, layers with
-  // level 0 or 1 will included, but layers with level 2 will be excluded.
-  // The default level setting for training and testing is 0 as well as the
-  // default layer level setting, so this setting can be safely ignored to
-  // include all layers.
-  optional int32 level = 30 [default = 0];
-
-  // The customizable "stages" in which the layer should be used.
-  // By default, a layer is used in all stages, including the default empty
-  // string ("") phase.
-  repeated string stage = 32;
+  // Rules controlling whether and when a layer is included in the network,
+  // based on the current NetState.  You may specify a non-zero number of rules
+  // to enable OR disable, but not both.  If no enable or disable rules are
+  // specified, the layer is always enabled.  If the current NetState meets
+  // ANY (i.e., one or more) of the specified rules, the layer is
+  // enabled/disabled.
+  repeated NetStateRule enable = 30;
+  repeated NetStateRule disable = 31;
 
   // NOTE
   // Add new LayerTypes to the enum below in lexicographical order (other than
