@@ -1,4 +1,20 @@
 name: "LeNet"
+
+# An INPUT layer provides unlabeled data when we're not using the solver.
+layers {
+  name: "mnist"
+  type: INPUT
+  top: "data"
+  input_param {
+    num: 64
+    channels: 1
+    height: 28
+    width: 28
+  }
+  enable: { solver: false }
+}
+
+# A DATA layer provides the labeled data when we're using the solver.
 layers {
   name: "mnist"
   type: DATA
@@ -9,7 +25,10 @@ layers {
     scale: 0.00390625
     batch_size: 64
   }
-  phase: TRAIN
+  enable: {
+    phase: TRAIN
+    solver: true
+  }
 }
 layers {
   name: "mnist"
@@ -21,8 +40,12 @@ layers {
     scale: 0.00390625
     batch_size: 100
   }
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
+
 layers {
   name: "conv1"
   type: CONVOLUTION
@@ -123,13 +146,28 @@ layers {
     }
   }
 }
+
+# When not using the solver, we output class probability predictions.
+layers {
+  name: "prob"
+  type: SOFTMAX
+  bottom: "ip2"
+  top: "prob"
+  enable: { solver: false }
+}
+
+# When using the solver, we always compute SOFTMAX_LOSS.
+# At TEST time, we also compute ACCURACY.
 layers {
   name: "accuracy"
   type: ACCURACY
   bottom: "ip2"
   bottom: "label"
   top: "accuracy"
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   name: "loss"
@@ -137,4 +175,5 @@ layers {
   bottom: "ip2"
   bottom: "label"
   top: "loss"
+  enable: { solver: true }
 }

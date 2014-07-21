@@ -1,6 +1,18 @@
 name: "CaffeNet"
 layers {
   name: "data"
+  type: INPUT
+  top: "data"
+  input_param {
+    num: 10
+    channels: 3
+    height: 227
+    width: 227
+  }
+  enable: { solver: false }
+}
+layers {
+  name: "data"
   type: DATA
   top: "data"
   top: "label"
@@ -11,7 +23,10 @@ layers {
     crop_size: 227
     mirror: true
   }
-  phase: TRAIN
+  enable: {
+    phase: TRAIN
+    solver: true
+  }
 }
 layers {
   name: "data"
@@ -25,7 +40,10 @@ layers {
     crop_size: 227
     mirror: false
   }
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   name: "conv1"
@@ -324,16 +342,27 @@ layers {
   }
 }
 layers {
+  name: "prob"
+  type: SOFTMAX
+  bottom: "fc8"
+  top: "prob"
+  enable: { solver: false }
+}
+layers {
   name: "accuracy"
   type: ACCURACY
   bottom: "fc8"
   bottom: "label"
   top: "accuracy"
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   name: "loss"
   type: SOFTMAX_LOSS
   bottom: "fc8"
   bottom: "label"
+  enable: { solver: true }
 }

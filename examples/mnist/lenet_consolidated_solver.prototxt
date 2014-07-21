@@ -36,10 +36,10 @@ solver_mode: GPU
 # In the case of MNIST, we have test batch size 100 and 100 test iterations,
 # covering the full 10,000 testing images.
 test_iter: 100
-test_stage: "test-on-test-set"
+test_state: { stage: "test-on-test-set" }
 # The train set has 60K images, so we run 600 test iters (600 * 100 = 60K).
 test_iter: 600
-test_stage: "test-on-train-set"
+test_state: { stage: "test-on-train-set" }
 
 # The net protocol buffer definition
 net_param {
@@ -54,7 +54,7 @@ net_param {
       scale: 0.00390625
       batch_size: 64
     }
-    phase: TRAIN
+    enable: { phase: TRAIN }
   }
   layers {
     name: "mnist"
@@ -66,8 +66,10 @@ net_param {
       scale: 0.00390625
       batch_size: 100
     }
-    phase: TEST
-    stage: "test-on-test-set"
+    enable: {
+      phase: TEST
+      stage: "test-on-test-set"
+    }
   }
   layers {
     name: "mnist"
@@ -79,8 +81,10 @@ net_param {
       scale: 0.00390625
       batch_size: 100
     }
-    phase: TEST
-    stage: "test-on-train-set"
+    enable {
+      phase: TEST
+      stage: "test-on-train-set"
+    }
   }
   layers {
     name: "conv1"
@@ -188,7 +192,7 @@ net_param {
     bottom: "ip2"
     bottom: "label"
     top: "accuracy"
-    phase: TEST
+    enable { phase: TEST }
   }
   layers {
     name: "loss"

@@ -1,5 +1,17 @@
 name: "MNISTAutoencoder"
 layers {
+  name: "data"
+  type: INPUT
+  top: "data"
+  input_param {
+    num: 64
+    channels: 1
+    height: 28
+    width: 28
+  }
+  enable: { solver: false }
+}
+layers {
   top: "data"
   name: "data"
   type: DATA
@@ -8,7 +20,10 @@ layers {
     scale: 0.0039215684
     batch_size: 100
   }
-  phase: TRAIN
+  enable: {
+    phase: TRAIN
+    solver: true
+  }
 }
 layers {
   top: "data"
@@ -19,7 +34,10 @@ layers {
     scale: 0.0039215684
     batch_size: 100
   }
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   bottom: "data"
@@ -244,14 +262,17 @@ layers {
   bottom: "flatdata"
   name: "loss"
   type: SIGMOID_CROSS_ENTROPY_LOSS
-  phase: TRAIN
+  enable: {
+    phase: TRAIN
+    solver: true
+  }
 }
 layers {
   bottom: "decode1"
   top: "decode1neuron"
   name: "decode1neuron"
   type: SIGMOID
-  phase: TEST
+  enable: { phase: TEST }
 }
 layers {
   bottom: "decode1neuron"
@@ -259,5 +280,8 @@ layers {
   name: "loss"
   type: EUCLIDEAN_LOSS
   top: "loss"
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }

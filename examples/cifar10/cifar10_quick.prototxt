@@ -1,6 +1,18 @@
 name: "CIFAR10_quick"
 layers {
   name: "cifar"
+  type: INPUT
+  top: "data"
+  input_param {
+    num: 1
+    channels: 3
+    height: 32
+    width: 32
+  }
+  enable: { solver: false }
+}
+layers {
+  name: "cifar"
   type: DATA
   top: "data"
   top: "label"
@@ -9,7 +21,10 @@ layers {
     mean_file: "mean.binaryproto"
     batch_size: 100
   }
-  phase: TRAIN
+  enable: {
+    phase: TRAIN
+    solver: true
+  }
 }
 layers {
   name: "cifar"
@@ -21,7 +36,10 @@ layers {
     mean_file: "mean.binaryproto"
     batch_size: 100
   }
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   name: "conv1"
@@ -174,12 +192,22 @@ layers {
   }
 }
 layers {
+  name: "prob"
+  type: SOFTMAX
+  bottom: "ip2"
+  top: "prob"
+  enable: { solver: false }
+}
+layers {
   name: "accuracy"
   type: ACCURACY
   bottom: "ip2"
   bottom: "label"
   top: "accuracy"
-  phase: TEST
+  enable: {
+    phase: TEST
+    solver: true
+  }
 }
 layers {
   name: "loss"
@@ -187,4 +215,5 @@ layers {
   bottom: "ip2"
   bottom: "label"
   top: "loss"
+  enable: { solver: true }
 }
