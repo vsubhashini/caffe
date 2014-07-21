@@ -296,11 +296,14 @@ void Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
                             param.input_dim(top_id * 4 + 1),
                             param.input_dim(top_id * 4 + 2),
                             param.input_dim(top_id * 4 + 3));
-      net_input_blob_indices_.push_back(blob_id);
-      net_input_blobs_.push_back(blob_pointer.get());
     } else {
       top_id_vecs_[layer_id].push_back(blob_id);
       top_vecs_[layer_id].push_back(blob_pointer.get());
+    }
+    if (layer_id == -1 ||
+        layer_param->type() == LayerParameter_LayerType_INPUT) {
+      net_input_blob_indices_.push_back(blob_id);
+      net_input_blobs_.push_back(blob_pointer.get());
     }
     memory_used_ += blob_pointer->count();
   }

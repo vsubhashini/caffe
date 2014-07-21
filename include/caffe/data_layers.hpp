@@ -234,6 +234,29 @@ class ImageDataLayer : public Layer<Dtype> {
   Caffe::Phase phase_;
 };
 
+/* InputLayer
+*/
+template <typename Dtype>
+class InputLayer : public Layer<Dtype> {
+ public:
+  explicit InputLayer(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+  virtual inline LayerParameter_LayerType type() const {
+    return LayerParameter_LayerType_INPUT;
+  }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int MinTopBlobs() const { return 1; }
+
+ protected:
+  virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top) { return 0; }
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {}
+};
+
 /* MemoryDataLayer
 */
 template <typename Dtype>
