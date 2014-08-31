@@ -102,6 +102,9 @@ OBJ_BUILD_DIR := $(BUILD_DIR)/src/$(PROJECT)
 LAYER_BUILD_DIR := $(OBJ_BUILD_DIR)/layers
 UTIL_BUILD_DIR := $(OBJ_BUILD_DIR)/util
 OBJS := $(PROTO_OBJS) $(CXX_OBJS) $(CU_OBJS)
+ifeq ($(USE_PYTHON_LAYER), 1)
+	OBJS += python/$(PROJECT)/_$(PROJECT).o
+endif
 # tool, example, and test objects
 TOOL_OBJS := $(addprefix $(BUILD_DIR)/, ${TOOL_SRCS:.cpp=.o})
 TOOL_BUILD_DIR := $(BUILD_DIR)/tools
@@ -171,6 +174,9 @@ LIBRARIES += glog gflags protobuf leveldb snappy \
 	lmdb boost_system hdf5_hl hdf5 m \
 	opencv_core opencv_highgui opencv_imgproc
 PYTHON_LIBRARIES := boost_python python2.7
+ifeq ($(USE_PYTHON_LAYER), 1)
+	LIBRARIES += $(PYTHON_LIBRARIES)
+endif
 WARNINGS := -Wall -Wno-sign-compare
 
 ##############################
@@ -321,6 +327,10 @@ INCLUDE_DIRS += $(BLAS_INCLUDE)
 LIBRARY_DIRS += $(BLAS_LIB)
 
 LIBRARY_DIRS += $(LIB_BUILD_DIR)
+
+ifeq ($(USE_PYTHON_LAYER), 1)
+	COMMON_FLAGS += -DUSE_PYTHON_LAYER
+endif
 
 # Complete build flags.
 COMMON_FLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
