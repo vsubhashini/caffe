@@ -4,6 +4,9 @@
 #include "caffe/layer_factory.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/vision_layers.hpp"
+#ifdef USE_PYTHON_LAYER
+#include "caffe/python_layer.hpp"
+#endif
 
 namespace caffe {
 
