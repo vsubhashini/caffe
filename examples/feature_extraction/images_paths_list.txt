@@ -1,0 +1,2 @@
+/scratch/cluster/vsub/caffe-rc3/caffe/examples/images/cat.jpg
+/scratch/cluster/vsub/caffe-rc3/caffe/examples/images/fish-bike.jpg
