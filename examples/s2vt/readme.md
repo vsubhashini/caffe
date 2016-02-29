@@ -9,11 +9,11 @@ To compile Caffe, please refer to the [Installation page](http://caffe.berkeleyv
 
 ### Using the model to generate captions
 
-1. **Get preprocessed model and sample data**
+**Get preprocessed model and sample data**
 ```
     ./get_s2vt.sh
 ```
-2. **Run the captioner**
+**Run the captioner**
 ```
     python s2vt_captioner.py -m s2vt_vgg_rgb
 ```
