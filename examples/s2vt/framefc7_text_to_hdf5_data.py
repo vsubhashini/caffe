@@ -39,16 +39,16 @@ class fc7FrameSequenceGenerator(SequenceGenerator):
           if video_id not in self.vid_framefeats:
             self.vid_framefeats[video_id]=[]
           self.vid_framefeats[video_id].append(','.join(line[1:]))
-      # reset max_words based on maximum frames in the video
-      print 'Reading sentences in: %s' % sentfile
-      with open(sentfile, 'r') as sentfd:
-        for line in sentfd:
-          line = line.strip()
-          id_sent = line.split('\t')
-          if len(id_sent)<2:
-            num_empty_lines += 1
-            continue
-          self.lines.append((id_sent[0], id_sent[1]))
+      if sentfile:
+        print 'Reading sentences in: %s' % sentfile
+        with open(sentfile, 'r') as sentfd:
+          for line in sentfd:
+            line = line.strip()
+            id_sent = line.split('\t')
+            if len(id_sent)<2:
+              num_empty_lines += 1
+              continue
+            self.lines.append((id_sent[0], id_sent[1]))
       if num_empty_lines > 0:
         print 'Warning: ignoring %d empty lines.' % num_empty_lines
     self.line_index = 0
