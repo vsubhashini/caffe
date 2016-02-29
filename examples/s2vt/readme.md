@@ -1,18 +1,22 @@
 ## S2VT: Sequence to Sequence Video to Text ##
 
 To train the S2VT model you will need to compile from my recurrent branch of caffe:
+```
     git clone https://github.com/vsubhashini/caffe.git
     git checkout recurrent
+```
 To compile Caffe, please refer to the [Installation page](http://caffe.berkeleyvision.org/installation.html).
 
 ### Using the model to generate captions
 
 1. **Get preprocessed model and sample data**
+```
     ./get_s2vt.sh
-
+```
 2. **Run the captioner**
+```
     python s2vt_captioner.py -m s2vt_vgg_rgb
-
+```
 ### Preparing data for videos
 
 1. **Pre-process videos to get frame features.** The code provided here does
