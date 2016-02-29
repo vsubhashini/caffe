@@ -1,6 +1,6 @@
 DEVICE_ID = 0
 
-# s2s where frame fc7 feats are in hdf5
+""" Script to generate captions from video features"""
 
 from collections import OrderedDict
 import argparse
@@ -200,13 +200,11 @@ def score_caption(net, image, caption, is_gt=True, caption_source='gt'):
   return output
 
 def next_video_gt_pair(tsg):
-  # modify to return a list of frames and a stream for the hdf5 outputs
   streams = tsg.get_streams()
   video_id = tsg.lines[tsg.line_index-1][0]
   gt = streams['target_sentence']
   return video_id, gt
 
-# keep all frames for the video (including padding frame)
 def all_video_gt_pairs(fsg):
   data = OrderedDict()
   if len(fsg.lines) > 0:
