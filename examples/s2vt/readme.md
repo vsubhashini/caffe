@@ -40,9 +40,9 @@ hdf5 training and validation data.
 Code to evaluate the predicted sentences (with example) can be found at
 [https://github.com/vsubhashini/caption-eval](https://github.com/vsubhashini/caption-eval).
 
-### References
+### Reference
 
-If you find this code helpful, please consider citing this work:
+If you find this code helpful, please consider citing:
 
 [Sequence to Sequence - Video to Text](https://vsubhashini.github.io/s2vt.html)
 
