@@ -34,3 +34,19 @@ mat file you might want to use `framefc7_stream_mat_text_to_hdf5_data.py`.
 1. **Point to the hdf5 training data.** Modify `s2vt.prototxt` to point to the
 hdf5 training and validation data.
 2. **Train the model.** Use `s2vt_solver.prototxt` to train your model.
+
+### Evaluating the generated sentences.
+
+Code to evaluate the predicted sentences (with example) can be found at
+[https://github.com/vsubhashini/caption-eval](https://github.com/vsubhashini/caption-eval).
+
+### References
+
+If you find this code helpful, please consider citing this work:
+
+[Sequence to Sequence - Video to Text](https://vsubhashini.github.io/s2vt.html)
+
+    Sequence to Sequence - Video to Text
+    S. Venugopalan, M. Rohrbach, J. Donahue, T. Darrell, R. Mooney, K. Saenko
+    The IEEE International Conference on Computer Vision (ICCV) 2015
+
