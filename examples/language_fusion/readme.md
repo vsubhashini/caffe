@@ -1,4 +1,7 @@
-## Improving LSTM-based Video Description with Linguistic Knowledge Mined from Text ##
+## Improving LSTM-based Video Description with <br/> Linguistic Knowledge Mined from Text ##
+
+An overview of the model is described at
+[https://vsubhashini.github.io/language_fusion.html](https://vsubhashini.github.io/language_fusion.html)
 
 To train the model you will need to compile from my recurrent branch of caffe:
 ```
