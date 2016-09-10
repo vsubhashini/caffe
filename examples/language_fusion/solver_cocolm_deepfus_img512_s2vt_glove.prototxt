@@ -1,0 +1,38 @@
+net: "./lm_deepfus_img512_s2vt_glove.prototxt"
+
+# The above net supports multiple sequence to sequence architectures:
+# (1) stage: 'factored' stage: '2-layer'
+# (2) stage: 'unfactored' stage: '1-layer'
+# (3) stage: 'unfactored' stage: '2-layer'
+# Addons:
+# (a) stage: 'dropFc7'   [input frame feature dropout]
+# (b) stage: 'dropEn'    [text feature dropout after embedding]
+# (c) stage: 'dropLstm1' [dropout on output of lstm1]
+# (d) stage: 'dropLstm2' [dropout on output of lstm2]
+#
+# This solver uses variant (1) which performed best on the youtube dataset.
+#
+# To use a different variant, modify the states (train_state, test_state)
+# below as appropriate:
+
+train_state: { stage: 'factored' stage: '2-layer' }
+test_iter: 100
+test_state: { stage: 'factored' stage: '2-layer' stage: 'test-on-train' }
+test_iter: 100
+test_state: { stage: 'factored' stage: '2-layer' stage: 'test-on-val' }
+test_interval: 1000
+base_lr: 0.002
+lr_policy: "step"
+gamma: 0.5
+stepsize: 7000
+display: 1
+max_iter: 30000
+momentum: 0.9
+momentum2: 0.999
+weight_decay: 0.0002
+snapshot: 2000
+snapshot_prefix:"./snapshots/s2vt_glove/lm_deepfus_img512_s2vt_glove_72.7kvocab_sgd_lr2e3step7k"
+solver_mode: GPU
+random_seed: 1701
+average_loss: 100
+clip_gradients: 10

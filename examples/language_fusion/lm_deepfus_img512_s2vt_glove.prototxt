@@ -1,0 +1,419 @@
+# The network presents the deep fusion approach described in [1]:
+# Please consider citing [1] if you use this example in your work.
+#
+# [1] S. Venugopalan, L. Hendricks, R. Mooney, K. Saenko.
+# "Improving LSTM-based Video Description
+#  with Linguistic Knowledge Mined from Text" EMNLP 2016.
+
+# The data is prepared using ./s2vt/framefc7_stream_text_to_hdf5.py
+name: "s2vt_glove_imgembed-512"
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "cont_sentence"
+  top: "input_sentence"
+  top: "target_sentence"
+  top: "stage_indicator"
+  top: "frame_fc7"
+  include { phase: TRAIN }
+  hdf5_data_param {
+    source: "./hdf5/buffer_16_s2vt_80/train_batches/hdf5_chunk_list.txt"
+    batch_size: 80
+  }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "cont_sentence"
+  top: "input_sentence"
+  top: "target_sentence"
+  top: "stage_indicator"
+  top: "frame_fc7"
+  include {
+    phase: TEST
+    stage: "test-on-train"
+  }
+  hdf5_data_param {
+    source: "./hdf5/buffer_16_s2vt_80/train_batches/hdf5_chunk_list.txt"
+    batch_size: 80
+  }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "cont_sentence"
+  top: "input_sentence"
+  top: "target_sentence"
+  top: "stage_indicator"
+  top: "frame_fc7"
+  include {
+    phase: TEST
+    stage: "test-on-val"
+  }
+  hdf5_data_param {
+    source: "./hdf5/buffer_16_s2vt_80/valid_batches/hdf5_chunk_list.txt"
+    batch_size: 80
+  }
+}
+layer {
+  name: "reshape_stg_indicator" # from 80 32 to 80 32 1 to concat
+  type: "Reshape"
+  bottom: "stage_indicator"
+  top: "stage_indicator_3axis"
+  reshape_param {
+    shape {
+      dim: 80
+      dim: 16
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "dropFc7"
+  type: "Dropout"
+  bottom: "frame_fc7"
+  top: "frame_fc7"
+  dropout_param { dropout_ratio: 0.5 }
+  include { stage: "dropFc7" }
+}
+layer {
+  name: "img_embedding"
+  type: "InnerProduct"
+  bottom: "frame_fc7"
+  top: "embedded_input_frames"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 512
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+    axis: -1
+  }
+  exclude { stage: "fix_imembed" }
+}
+layer {
+  name: "img_embedding"
+  type: "InnerProduct"
+  bottom: "frame_fc7"
+  top: "embedded_input_frames"
+  param {
+    lr_mult: 0
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 512
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+    axis: -1
+  }
+  include { stage: "fix_imembed" }
+}
+layer {
+  name: "embedding_input"
+  type: "Embed"
+  bottom: "input_sentence"
+  top: "embedded_input_sentence"
+  param {
+    lr_mult: 0.1
+  }
+  embed_param {
+    bias_term: false
+    input_dim: 72701  # = surf_intersect_glove + 1 (for EOS)
+    num_output: 300
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+  }
+  include { stage: "tune_embed" }
+}
+layer {
+  name: "embedding_input"
+  type: "Embed"
+  bottom: "input_sentence"
+  top: "embedded_input_sentence"
+  param {
+    lr_mult: 0
+  }
+  embed_param {
+    bias_term: false
+    input_dim: 72701  # = surf_intersect_glove + 1 (for EOS)
+    num_output: 300
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+  }
+  exclude { stage: "tune_embed" }
+}
+layer {
+  name: "drop_input_en"
+  type: "Dropout"
+  bottom: "embedded_input_sentence"
+  top: "embedded_input_sentence"
+  dropout_param { dropout_ratio: 0.5 }
+  include { stage: "dropEn" }
+}
+# unfactored model concat frames and sents
+layer {
+  name: "concat"
+  type: "Concat"
+  concat_param { concat_dim: 2 } # concat along h
+  bottom: "embedded_input_frames"
+  bottom: "embedded_input_sentence"
+  bottom: "stage_indicator_3axis"
+  top: "embedded_input_video_sequence"
+  include { stage: "unfactored" }
+}
+layer {
+  name: "lstm1"
+  type: "LSTM"
+  bottom: "embedded_input_video_sequence"
+  bottom: "cont_sentence"
+  top: "lstm1"
+  include { stage: "unfactored" }
+  recurrent_param {
+    num_output: 1024
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "lstm2"
+  type: "LSTM"
+  bottom: "lstm1"
+  bottom: "cont_sentence"
+  top: "lstm2"
+  include {
+    stage: "unfactored"
+    stage: "2-layer"
+  }
+  recurrent_param {
+    num_output: 1024
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "lstm1"
+  type: "LSTM"
+  bottom: "embedded_input_frames"
+  bottom: "cont_sentence"
+  top: "lstm1"
+  include { stage: "factored" }
+  recurrent_param {
+    num_output: 1024
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "drop_lstm1"
+  type: "Dropout"
+  bottom: "lstm1"
+  top: "lstm1"
+  dropout_param { dropout_ratio: 0.5 }
+  include { stage: "dropLstm1" }
+}
+layer {
+  name: "concat"
+  type: "Concat"
+  concat_param { concat_dim: 2 } # concat along h
+  bottom: "lstm1"
+  bottom: "embedded_input_sentence"
+  bottom: "stage_indicator_3axis"
+  top: "lstm1_video_sequence"
+  include { stage: "factored" }
+}
+layer {
+  name: "lstm2"
+  type: "LSTM"
+  bottom: "lstm1_video_sequence"
+  bottom: "cont_sentence"
+  top: "lstm2"
+  include { stage: "factored" }
+  recurrent_param {
+    num_output: 1024
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "drop_lstm2"
+  type: "Dropout"
+  bottom: "lstm2"
+  top: "lstm2"
+  dropout_param { dropout_ratio: 0.5 }
+  include { stage: "dropLstm2" }
+}
+layer {
+  name: "predict"
+  type: "InnerProduct"
+  bottom: "lstm1"
+  top: "predict"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  exclude { stage: "2-layer" }
+  inner_product_param {
+    num_output: 72701 # youtube_movie_vocab + 1
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "lstm_lm"
+  type: "LSTM"
+  bottom: "embedded_input_sentence"
+  bottom: "cont_sentence"
+  top: "lstm_lm"
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
+  param {
+    lr_mult: 0
+  }
+  recurrent_param {
+    num_output: 1024
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include { stage: "2-layer" }
+}
+layer {
+  name: "concat"
+  type: "Concat"
+  concat_param { concat_dim: 2 } # concat along h
+  bottom: "lstm2"
+  bottom: "lstm_lm"
+  top: "lstm_vidlm_textlm"
+  include { stage: "2-layer" }
+}
+
+layer {
+  name: "deep_fusion_predict"
+  type: "InnerProduct"
+  bottom: "lstm_vidlm_textlm"
+  top: "predict"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+#  include { stage: "2-layer" }
+  inner_product_param {
+    num_output: 72701
+    weight_filler {
+      type: "uniform"
+      min: -0.08
+      max: 0.08
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "cross_entropy_loss"
+  type: "SoftmaxWithLoss"
+  bottom: "predict"
+  bottom: "target_sentence"
+  top: "cross_entropy_loss"
+  loss_weight: 20
+  loss_param {
+    ignore_label: -1
+  }
+  softmax_param {
+    axis: 2
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "predict"
+  bottom: "target_sentence"
+  top: "accuracy"
+  include { phase: TEST }
+  accuracy_param {
+    axis: 2
+    ignore_label: -1
+  }
+}
