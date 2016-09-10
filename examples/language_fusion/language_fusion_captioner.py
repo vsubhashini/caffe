@@ -518,7 +518,7 @@ def main():
   args = parser.parse_args()
 
   # TODO: Input the snapshot directory, vocab path, frames (and sents) path
-  DIR = './snapshots/s2vt_glove'
+  DIR = './snapshots'
   VOCAB_FILE = './vocabulary_72k_surf_intersect_glove.txt'
   FRAMEFEAT_FILE_PATTERN = './yt_allframes_vgg_fc7_{0}.txt'
  

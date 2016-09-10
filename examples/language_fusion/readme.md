@@ -1,5 +1,4 @@
-## Improving LSTM-based Video Description with Linguistic Knowledge Mined from
-Text ##
+## Improving LSTM-based Video Description with Linguistic Knowledge Mined from Text ##
 
 To train the model you will need to compile from my recurrent branch of caffe:
 ```
@@ -16,7 +15,7 @@ To compile Caffe, please refer to the [Installation page](http://caffe.berkeleyv
 ```
 **Run the captioner**
 ```
-    python language_fusion_captioner.py -m <model_name>
+    python language_fusion_captioner.py -m indomain_deepfusion
 ```
 ### Preparing data for videos
 
