@@ -247,8 +247,8 @@ SETTING = '.'
 OUTPUT_DIR = '{0}/hdf5/buffer_{1}_s2vt_{2}'.format(SETTING, BUFFER_SIZE, MAX_WORDS)
 VOCAB = '%s/vocabulary.txt' % SETTING
 OUTPUT_DIR_PATTERN = '%s/%%s_batches' % OUTPUT_DIR
-FRAMEFEAT_FILE_PATTERN = './youtube/splits/yt_allframes_vgg_fc7_{0}.txt'
-SENTS_FILE_PATTERN = './youtube/splits/sents_{0}_lc_nopunc.txt'
+FRAMEFEAT_FILE_PATTERN = './data/yt_allframes_vgg_fc7_{0}.txt'
+SENTS_FILE_PATTERN = './data/sents_{0}_lc_nopunc.txt'
 OUT_FILE_PATTERN = \
 './rawcorpus/{0}/s2vt_vgg_{0}_sequence.txt'
 OUT_CORPUS_PATH = './rawcorpus/{0}'

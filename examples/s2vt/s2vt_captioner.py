@@ -517,8 +517,8 @@ def main():
 
   # TODO: Input the snapshot directory, vocab path, frames (and sents) path
   DIR = './snapshots'
-  VOCAB_FILE = './yt_coco_mvad_mpiimd_vocabulary.txt'
-  FRAMEFEAT_FILE_PATTERN = './yt_allframes_vgg_fc7_{0}.txt'
+  VOCAB_FILE = './data/yt_coco_mvad_mpiimd_vocabulary.txt'
+  FRAMEFEAT_FILE_PATTERN = './data/yt_allframes_vgg_fc7_{0}.txt'
  
   LSTM_NET_FILE = './s2vt.words_to_preds.deploy.prototxt'
   RESULTS_DIR = './results'

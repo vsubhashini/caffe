@@ -19,15 +19,27 @@ To compile Caffe, please refer to the [Installation page](http://caffe.berkeleyv
 ```
 ### Preparing data for videos
 
-1. **Pre-process videos to get frame features.** The code provided here does
-not process videos directly. You can use any method to sample video frames and
-extract VGG features for the frames. You might want the features to be
-formatted similar to the sample data in the download script. The sample data
-corresponds to the validation set of the Youtube Dataset.
+1. **Pre-process videos to get frame features.**
+The code provided here does not process videos directly. VGG features need to be
+extracted for each frame. Pre-processed data (VGG features) for the MSVD corpus can
+be found [here](https://www.dropbox.com/sh/whatkfg5mr4dr63/AACKCO3LwSsHK4_GOmHn4oyYa?dl=0).
+Use this script to download training, validation, and test data. (~1.2GB)
+```
+    ./download_data.sh
+```
+
+**Extracting features from your own videos/images**
+If you wish to process your own videos, then you need to first extract VGG
+features. This can be done using the code
+[here](https://github.com/vsubhashini/caffe/blob/master/examples/feature_extraction/extract_vgg_features.py)
+ `extract_vgg_features.py`.
 
 2. **Convert features to hdf5.** If your features are in text format use
 `framefc7_stream_text_to_hdf5_data.py` to convert to hdf5 data. If they are in a
 mat file you might want to use `framefc7_stream_mat_text_to_hdf5_data.py`.
+```
+    python framefc7_stream_text_to_hdf5_data.py
+```
 
 ### Training the model
 

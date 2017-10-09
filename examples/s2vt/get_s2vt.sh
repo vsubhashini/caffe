@@ -16,4 +16,10 @@ if [ ! -d "$DIR" ]; then
 fi
 mv s2s_vgg_pstream_allvocab_fac2_iter_16000.caffemodel $DIR"/s2vt_vgg_rgb.caffemodel"
 
+DIR="./data"
+if [ ! -d "$DIR" ]; then
+    mkdir $DIR
+fi
+mv yt_allframes_vgg_fc7_val.txt $DIR"/"
+mv yt_coco_mvad_mpiimd_vocabulary.txt $DIR"/
 echo "Done."

@@ -245,14 +245,15 @@ class fc7FrameSequenceGenerator(SequenceGenerator):
 
 
 # BUFFER_SIZE = 1 # TEXT streams
-BUFFER_SIZE = 32 # TEXT streams
+# BUFFER_SIZE = 32 # Use this if you have ~11GB in GPU.
+BUFFER_SIZE = 16 # Requires ~6GB GPU.
 BATCH_STREAM_LENGTH = 1000
 SETTING = '.'
 OUTPUT_DIR = '{0}/hdf5/buffer_{1}_s2vt_{2}'.format(SETTING, BUFFER_SIZE, MAX_WORDS)
-VOCAB = '%s/vocabulary.txt' % SETTING
+VOCAB = './data/yt_coco_mvad_mpiimd_vocabulary.txt'
 OUTPUT_DIR_PATTERN = '%s/%%s_batches' % OUTPUT_DIR
-FRAMEFEAT_FILE_PATTERN = './youtube/splits/yt_allframes_vgg_fc7_{0}.txt'
-SENTS_FILE_PATTERN = './youtube/splits/sents_{0}_lc_nopunc.txt'
+FRAMEFEAT_FILE_PATTERN = './data/yt_allframes_vgg_fc7_{0}.txt'
+SENTS_FILE_PATTERN = './data/sents_{0}_lc_nopunc.txt'
 OUT_FILE_PATTERN = \
 './rawcorpus/{0}/s2vt_vgg_{0}_sequence.txt'
 OUT_CORPUS_PATH = './rawcorpus/{0}'
