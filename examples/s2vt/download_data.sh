@@ -24,4 +24,8 @@ if [ ! -f ./data/yt_allframes_vgg_fc7_train.txt ]; then
     mv yt_allframes_vgg_fc7_train.txt $DIR"/"
 fi
 
+wget --no-check-certificate https://www.dropbox.com/sh/4ecwl7zdha60xqo/AAAfs3zbjpeYtzfOOeFzdPMta/sents_test_lc_nopunc.txt
+wget --no-check-certificate https://www.dropbox.com/sh/4ecwl7zdha60xqo/AACLdedalP2OIPu5KG6cg5G7a/sents_train_lc_nopunc.txt
+wget --no-check-certificate https://www.dropbox.com/sh/4ecwl7zdha60xqo/AAAU2dioWf_vRTW2Gqgnd4b5a/sents_val_lc_nopunc.txt
+mv sents_*_lc_nopunc.txt $DIR"/"
 echo "Done."

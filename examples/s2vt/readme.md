@@ -28,7 +28,7 @@ Use this script to download training, validation, and test data. (~1.2GB)
     ./download_data.sh
 ```
 
-**Extracting features from your own videos/images**
+**Extracting features for your own videos/images**
 If you wish to process your own videos, then you need to first extract VGG
 features. This can be done using the code
 [here](https://github.com/vsubhashini/caffe/blob/master/examples/feature_extraction/extract_vgg_features.py)
