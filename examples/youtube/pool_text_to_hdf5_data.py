@@ -302,7 +302,7 @@ def preprocess_dataset(split_name, data_split_name, batch_stream_length, aligned
   writer.write_to_exhaustion()
   writer.write_filelists()
   if not os.path.isfile(vocab_filename):
-    fsg.dump_vocabulary(vocab_out_path)
+    tsg.dump_vocabulary(vocab_filename)
   out_path = OUT_CORPUS_PATH.format(data_split_name)
   vid_id_order_outpath = '%s/yt_pool_%s_vidid_order_%d_%d.txt' % \
   (out_path, data_split_name, BUFFER_SIZE, MAX_WORDS)
